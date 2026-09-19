@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>振动与波</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$']] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script"></script>
+<style>
+:root{
+  --bg:#f0f2f5; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280;
+  --blue:#0072bd; --red:#d95319; --green:#77ac30; --line:#e5e7eb;
+  --accent:#2c7be5;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  background:var(--bg); color:var(--ink); min-height:100vh;
+}
+header{
+  background:linear-gradient(135deg,#0f2b5b,#1d4f91);
+  color:#fff; padding:14px 20px; display:flex; align-items:center; gap:14px;
+  box-shadow:0 2px 8px rgba(0,0,0,.18); position:sticky; top:0; z-index:20;
+}
+header h1{font-size:20px; margin:0; letter-spacing:2px; font-weight:600;}
+header .sub{font-size:12px; opacity:.85;}
+#homeBtn{
+  margin-left:auto; background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.35);
+  padding:7px 16px; border-radius:8px; cursor:pointer; font-size:14px; transition:.15s;
+}
+#homeBtn:hover{background:rgba(255,255,255,.28);}
+main{max-width:1180px; margin:0 auto; padding:18px;}
+.view{display:none;}
+.view.active{display:block;}
+
+.card{background:var(--panel); border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:16px; margin-bottom:16px;}
+.card h2{margin:0 0 6px; font-size:17px;}
+.card .desc{color:var(--muted); font-size:13px; margin:0 0 12px;}
+
+/* Menu */
+.menu-hero{text-align:center; padding:30px 16px 8px;}
+.menu-hero h1{font-size:34px; letter-spacing:6px; margin:0 0 6px; color:#123a74;}
+.menu-hero p{color:var(--muted); margin:0;}
+.sec-title{
+  display:flex; align-items:center; gap:10px; margin:22px 0 12px;
+  font-size:18px; font-weight:700; color:#123a74;
+}
+.sec-title::before{content:""; width:6px; height:22px; background:var(--accent); border-radius:3px;}
+.menu-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+@media(max-width:760px){.menu-grid{grid-template-columns:1fr;}}
+.menu-btn{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 16px;
+  cursor:pointer; text-align:center; transition:.18s; box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.menu-btn:hover{transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,.12); border-color:var(--accent);}
+.menu-btn .glyph{font-size:34px; line-height:1; margin-bottom:10px;}
+.menu-btn .t{font-size:17px; font-weight:600;}
+.menu-btn .e{font-size:12px; color:var(--muted); margin-top:4px;}
+
+/* generic panels */
+.toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:10px 0;}
+button.btn{
+  background:var(--accent); color:#fff; border:none; padding:9px 18px; border-radius:8px;
+  cursor:pointer; font-size:14px; transition:.15s;
+}
+button.btn:hover{filter:brightness(1.08);}
+button.btn:disabled{background:#cbd5e1; color:#fff; cursor:not-allowed;}
+button.btn.ghost{background:#eef2f7; color:#1f2937; border:1px solid #d6dee8;}
+button.btn.green{background:var(--green);}
+button.btn.red{background:var(--red);}
+button.btn.blue{background:var(--blue);}
+
+fieldset{border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:0;}
+legend{font-size:13px; color:var(--muted); padding:0 6px;}
+.param{display:inline-flex; align-items:center; gap:6px; margin:4px 8px 4px 0; font-size:14px;}
+.param label{white-space:nowrap;}
+.param input[type=number]{width:82px; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px;}
+.param input[type=checkbox]{width:16px; height:16px;}
+
+/* 手机端：参数、按钮纵向排列 */
+@media(max-width:600px){
+  .toolbar{flex-direction:column; align-items:stretch;}
+  .toolbar .btn{width:100%;}
+  .param{display:flex; width:100%;}
+  .param input[type=number]{flex:1;}
+}
+/* 振动来源：并排图在窄屏横向滑动 */
+.hscroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+
+canvas{width:100%; height:100%; display:block; background:#fff; border:1px solid var(--line); border-radius:8px;}
+.plot-wrap{position:relative;}
+.plot-wrap .cap{font-size:12px; color:var(--muted); margin-top:4px;}
+.canvas-grid{display:grid; gap:12px;}
+.grid-2{grid-template-columns:1fr 1fr;}
+.grid-1x2{grid-template-columns:1.1fr 1fr;}
+@media(max-width:820px){.grid-1x2{grid-template-columns:1fr;}}
+@media(max-width:560px){.grid-2{grid-template-columns:1fr;}}
+@media(max-width:820px){ .osi-grid{grid-template-columns:300px 300px; width:max-content;} }
+.panel{height:260px;}
+.panel.sm{height:200px;}
+.panel.lg{height:300px;}
+.panel.xl{height:340px;}
+.stack{display:flex; flex-direction:column; gap:10px;}
+.vec-layout{display:grid; grid-template-columns:460px 1fr; gap:16px; align-items:start;}
+@media(max-width:820px){.vec-layout{grid-template-columns:1fr;}}
+.vec-col{display:flex; flex-direction:column; gap:10px;}
+
+.eq-box{
+  min-height:120px; background:#fbfdff; border:1px solid var(--line); border-radius:10px;
+  padding:12px 16px; font-size:17px; line-height:1.75; overflow:auto; margin-top:10px;
+}
+.eq-box .eq{margin:2px 0;}
+.eq-box .eq.title{font-weight:700; color:#123a74;}
+.hidden{display:none !important;}
+.muted-note{font-size:12px; color:var(--muted);}
+.center{text-align:center;}
+</style>
+</head>
+<body>
+<header>
+  <h1>振动与波</h1>
+  <span class="sub">Vibration &amp; Wave · 交互演示</span>
+  <button id="homeBtn">返回主页</button>
+</header>
+
+<main>
+
+  <!-- ===================== 主菜单 ===================== -->
+  <section id="menu" class="view active">
+    <div class="menu-hero">
+      <h1>振动与波</h1>
+      <p>机械振动 · 振动与波 —— 分模块交互演示</p>
+    </div>
+
+    <div class="sec-title">机械振动</div>
+    <div class="menu-grid">
+      <div class="menu-btn" data-goto="osi">
+        <div class="glyph">🪀</div><div class="t">振动来源</div>
+        <div class="e">弹簧振子 · 简谐运动的产生</div>
+      </div>
+      <div class="menu-btn" data-goto="rotvec">
+        <div class="glyph">🔄</div><div class="t">振动描述</div>
+        <div class="e">旋转矢量 · 位移与速度</div>
+      </div>
+      <div class="menu-btn" data-goto="osicom">
+        <div class="glyph">➕</div><div class="t">振动叠加</div>
+        <div class="e">两个简谐运动的合成</div>
+      </div>
+    </div>
+
+    <div class="sec-title">振动与波</div>
+    <div class="menu-grid">
+      <div class="menu-btn" data-goto="wavmov">
+        <div class="glyph">🌊</div><div class="t">振动传播</div>
+        <div class="e">波动画 · 质元振动与波形传播</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 振动来源 ===================== -->
+  <section id="osi" class="view">
+    <div class="card">
+      <h2>振动来源 —— 弹簧振子</h2>
+      <p class="desc">质量-弹簧系统在弹性力(与重力)作用下的运动，说明简谐运动的产生。</p>
+      <fieldset>
+        <legend>参数</legend>
+        <span class="param"><label>质量 m (kg)</label><input type="number" id="osi_m" value="1.0" step="0.1"></span>
+        <span class="param"><label>劲度系数 k (N/m)</label><input type="number" id="osi_k" value="100" step="5"></span>
+        <br>
+        <span class="param"><label>弹簧原长 l₀ (cm)</label><input type="number" id="osi_l" value="7" step="1"></span>
+        <span class="param"><label>初始位移 y₀ (cm，相对平衡位置)</label><input type="number" id="osi_y0" value="6" step="1"></span>
+        <br>
+        <span class="param"><label>初始速度 v₀ (cm/s)</label><input type="number" id="osi_v0" value="0" step="1"></span>
+        <span class="param"><label><input type="checkbox" id="osi_g" checked> 考虑重力</label></span>
+      </fieldset>
+      <div class="toolbar">
+        <button class="btn" id="osi_start">开始动画</button>
+        <button class="btn blue" id="osi_curve" disabled>显示曲线与方程</button>
+        <button class="btn ghost" id="osi_back">返回</button>
+      </div>
+      <div class="hscroll">
+        <div class="canvas-grid grid-1x2 osi-grid">
+          <div class="plot-wrap"><div class="panel lg"><canvas id="osi_spring"></canvas></div><div class="cap">弹簧振子（y 向下为正）</div></div>
+          <div class="plot-wrap"><div class="panel lg"><canvas id="osi_yt"></canvas></div><div class="cap">位移 y – t 曲线</div></div>
+          <div><div id="osi_eq" class="eq-box hidden"></div></div>
+          <div class="plot-wrap"><div class="panel"><canvas id="osi_vt"></canvas></div><div class="cap">速度 v – t 曲线</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 振动描述 ===================== -->
+  <section id="rotvec" class="view">
+    <div class="card">
+      <h2>振动描述 —— 旋转矢量</h2>
+      <p class="desc">用匀速圆周运动在坐标轴上的投影描述简谐运动的位移与速度。</p>
+      <div class="toolbar">
+        <button class="btn" id="rv_start">开始（位移）</button>
+        <button class="btn blue" id="rv_vel" disabled>下一步（速度）</button>
+        <button class="btn ghost" id="rv_back">返回</button>
+      </div>
+      <div style="max-width:480px;margin:12px auto 0;">
+        <div id="rv_eq1" class="eq-box hidden"></div>
+        <div id="rv_eq2" class="eq-box hidden"></div>
+        <div class="plot-wrap" style="margin-top:12px;"><div class="panel" style="height:400px"><canvas id="rv_circle"></canvas></div><div class="cap">旋转矢量（圆周 + x 轴投影）</div></div>
+        <div class="plot-wrap" style="margin-top:12px;"><div class="panel" style="height:240px"><canvas id="rv_trace"></canvas></div><div class="cap">投影随时间的变化（时间向下增大，横轴与上图对齐）</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 振动叠加 ===================== -->
+  <section id="osicom" class="view">
+    <div class="card">
+      <h2>振动叠加 —— 两个简谐运动的合成</h2>
+      <p class="desc">y = A₁cos(ω₁t+φ₁) + A₂cos(ω₂t+φ₂) 的曲线与旋转矢量合成。</p>
+      <fieldset>
+        <legend>振动 1（红）</legend>
+        <span class="param"><label>A₁</label><input type="number" id="sc_A1" value="2" step="0.5"></span>
+        <span class="param"><label>ω₁ (rad/s)</label><input type="number" id="sc_w1" value="1.5708" step="0.1"></span>
+        <span class="param"><label>φ₁</label><input type="number" id="sc_p1" value="0" step="0.1"></span>
+      </fieldset>
+      <fieldset style="margin-top:8px;">
+        <legend>振动 2（蓝）</legend>
+        <span class="param"><label>A₂</label><input type="number" id="sc_A2" value="3" step="0.5"></span>
+        <span class="param"><label>ω₂ (rad/s)</label><input type="number" id="sc_w2" value="1.5708" step="0.1"></span>
+        <span class="param"><label>φ₂</label><input type="number" id="sc_p2" value="1.5708" step="0.1"></span>
+      </fieldset>
+      <p class="muted-note" style="margin:6px 0 0;">提示：默认 ω₁ = ω₂ = 1.5708 ≈ π/2 rad/s，φ₂ = 1.5708 ≈ π/2。</p>
+      <div class="toolbar">
+        <button class="btn" id="sc_curve">叠加曲线</button>
+        <button class="btn blue" id="sc_anim" disabled>矢量动画</button>
+        <button class="btn ghost" id="sc_back">返回</button>
+      </div>
+      <div style="max-width:480px;margin:12px auto 0;">
+        <div class="plot-wrap"><div class="panel lg"><canvas id="sc_yt"></canvas></div><div class="cap">y₁、y₂ 与 y₁+y₂ 随时间变化</div></div>
+        <div class="plot-wrap" style="margin-top:12px;"><div class="panel" style="height:400px"><canvas id="sc_vec"></canvas></div><div class="cap">旋转矢量合成</div></div>
+        <div class="plot-wrap" style="margin-top:12px;"><div class="panel" style="height:240px"><canvas id="sc_trace"></canvas></div><div class="cap">合振动随时间的变化（时间向下增大，横轴与上图对齐）</div></div>
+      </div>
+      <div id="sc_eq" class="eq-box hidden"></div>
+    </div>
+  </section>
+
+  <!-- ===================== 振动传播 ===================== -->
+  <section id="wavmov" class="view">
+    <div class="card">
+      <h2>振动传播 —— 波动画</h2>
+      <p class="desc">波源振动通过介质向外传播，形成行波。点击“播放”观看波动画。</p>
+      <div class="toolbar">
+        <button class="btn" id="wv_play">播放</button>
+        <button class="btn" id="wv_pause" disabled>暂停</button>
+        <button class="btn blue" id="wv_next" disabled>下一步（质元振动的传播）</button>
+        <button class="btn ghost" id="wv_back">返回</button>
+      </div>
+      <div class="plot-wrap"><div class="panel xl"><canvas id="wv_canvas"></canvas></div><div class="cap">波由波源向外传播（红点为波源 x=0，蓝点为 x=λ/4）</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== 波形传播 ===================== -->
+  <section id="osi2wav" class="view">
+    <div class="card">
+      <h2>波形传播 —— 波形随位置的变化</h2>
+      <p class="desc">不同时刻的波形快照，展示振动状态如何随位置 x 传播。</p>
+      <div class="toolbar">
+        <button class="btn" id="o2w_start">开始（快照）</button>
+        <button class="btn blue" id="o2w_eq" disabled>显示方程</button>
+        <button class="btn green" id="o2w_derive" disabled>推导 y(x)→y(x,t)</button>
+        <button class="btn ghost" id="o2w_back">返回主页</button>
+      </div>
+      <div class="stack">
+        <div class="plot-wrap"><div class="panel sm"><canvas id="o2w_c1"></canvas></div><div class="cap">t = 0.25T</div></div>
+        <div class="plot-wrap"><div class="panel sm"><canvas id="o2w_c2"></canvas></div><div class="cap">t = 0.50T</div></div>
+        <div class="plot-wrap"><div class="panel sm"><canvas id="o2w_c3"></canvas></div><div class="cap">t = 0.75T</div></div>
+        <div class="plot-wrap"><div class="panel sm"><canvas id="o2w_c4"></canvas></div><div class="cap">t = 1.00T</div></div>
+      </div>
+      <div id="o2w_eqwrap" class="hidden" style="margin-top:12px;">
+        <div id="o2w_eqleft" class="eq-box"></div>
+        <div id="o2w_eqright" class="eq-box"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 质元振动的传播（延迟） ===================== -->
+  <section id="wav" class="view">
+    <div class="card">
+      <h2>质元振动的传播（延迟）</h2>
+      <p class="desc">观察 x=0 与 x=λ/4 两个质元的振动，理解波是振动状态的传播（x=λ/4 处延迟 T/4）。</p>
+      <div class="toolbar">
+        <button class="btn" id="wf_start">开始（快照）</button>
+        <button class="btn blue" id="wf_eq" disabled>显示方程</button>
+        <button class="btn green" id="wf_derive" disabled>推导 y(t)→y(x,t)</button>
+        <button class="btn" id="wf_next" disabled>下一步（波形传播）</button>
+      </div>
+      <div class="stack">
+        <div class="plot-wrap"><div class="panel sm"><canvas id="wf_c1"></canvas></div><div class="cap">t = 0.25T</div></div>
+        <div class="plot-wrap"><div class="panel sm"><canvas id="wf_c2"></canvas></div><div class="cap">t = 0.50T</div></div>
+        <div class="plot-wrap"><div class="panel sm"><canvas id="wf_c3"></canvas></div><div class="cap">t = 0.75T</div></div>
+        <div class="plot-wrap"><div class="panel sm"><canvas id="wf_c4"></canvas></div><div class="cap">t = 1.00T</div></div>
+      </div>
+      <div style="margin-top:12px;">
+        <div id="wf_eq1" class="eq-box hidden"></div>
+        <div id="wf_eq2" class="eq-box hidden"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+"use strict";
+
+/* ================= 通用工具 ================= */
+const $ = id => document.getElementById(id);
+const BLUE='#0072bd', RED='#d95319', GREEN='#77ac30', GRAY='#9aa4b2', INK='#333';
+
+function show(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $(id).classList.add('active');
+  window.scrollTo(0,0);
+  resizeAll();
+  if(id!=='wavmov'){ wvRunning=false; const pb=$('wv_pause'); if(pb){ pb.disabled=true; pb.textContent='暂停'; } }
+  if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetPromise().catch(()=>{}); }
+}
+
+// 全局动画句柄
+let anims = {};
+function stopAnim(key){ if(anims[key]){ cancelAnimationFrame(anims[key]); delete anims[key]; } }
+function stopAllAnim(){ Object.keys(anims).forEach(stopAnim); }
+
+/* Plot 封装 canvas */
+class Plot{
+  constructor(canvas){ this.cv=canvas; this.ctx=canvas.getContext('2d'); this.dpr=window.devicePixelRatio||1; this.resize(); this.x0=-1;this.x1=1;this.y0=-1;this.y1=1; }
+  resize(){
+    const r=this.cv.getBoundingClientRect();
+    const w=(r.width>0)?r.width:this.cv.clientWidth||400;
+    const h=(r.height>0)?r.height:this.cv.clientHeight||240;
+    this.cv.width=Math.round(w*this.dpr); this.cv.height=Math.round(h*this.dpr);
+    this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
+    this.W=w; this.H=h;
+  }
+  setDomain(x0,x1,y0,y1){ this.x0=x0;this.x1=x1;this.y0=y0;this.y1=y1; }
+  X(x){ return (x-this.x0)/(this.x1-this.x0)*this.W; }
+  Y(y){ return this.H-(y-this.y0)/(this.y1-this.y0)*this.H; }
+  sx(dx){ return dx/(this.x1-this.x0)*this.W; } // pixel length of dx
+  sy(dy){ return dy/(this.y1-this.y0)*this.H; }
+  clear(bg){ this.ctx.fillStyle=bg||'#ffffff'; this.ctx.fillRect(0,0,this.W,this.H); }
+  setLineStyle(color,width,dash){ this.ctx.strokeStyle=color; this.ctx.lineWidth=width||1; this.ctx.setLineDash(dash||[]); }
+  line(x1,y1,x2,y2,color,width,dash){ this.setLineStyle(color,width,dash); this.ctx.beginPath(); this.ctx.moveTo(this.X(x1),this.Y(y1)); this.ctx.lineTo(this.X(x2),this.Y(y2)); this.ctx.stroke(); this.ctx.setLineDash([]); }
+  polyline(pts,color,width,dash){ if(!pts||pts.length<2)return; this.setLineStyle(color,width,dash); this.ctx.beginPath(); pts.forEach((p,i)=>{ const x=this.X(p[0]),y=this.Y(p[1]); if(i===0)this.ctx.moveTo(x,y); else this.ctx.lineTo(x,y); }); this.ctx.stroke(); this.ctx.setLineDash([]); }
+  dot(x,y,color,r){ this.ctx.fillStyle=color; this.ctx.beginPath(); this.ctx.arc(this.X(x),this.Y(y),r||4,0,Math.PI*2); this.ctx.fill(); }
+  arrow(x1,y1,x2,y2,color,width){
+    const xa=this.X(x1),ya=this.Y(y1),xb=this.X(x2),yb=this.Y(y2);
+    this.ctx.strokeStyle=color; this.ctx.fillStyle=color; this.ctx.lineWidth=width||2;
+    const ang=Math.atan2(yb-ya,xb-xa); const h=9;
+    this.ctx.beginPath(); this.ctx.moveTo(xa,ya); this.ctx.lineTo(xb,yb); this.ctx.stroke();
+    this.ctx.beginPath(); this.ctx.moveTo(xb,yb);
+    this.ctx.lineTo(xb-h*Math.cos(ang-Math.PI/6),yb-h*Math.sin(ang-Math.PI/6));
+    this.ctx.lineTo(xb-h*Math.cos(ang+Math.PI/6),yb-h*Math.sin(ang+Math.PI/6));
+    this.ctx.closePath(); this.ctx.fill();
+  }
+  text(x,y,str,opts){ opts=opts||{}; const ctx=this.ctx;
+    ctx.fillStyle=opts.color||INK; ctx.font=opts.font||'13px Segoe UI, Microsoft YaHei';
+    ctx.textAlign=opts.align||'left'; ctx.textBaseline=opts.base||'middle';
+    ctx.fillText(str,this.X(x),this.Y(y));
+  }
+  axesThroughOrigin(color,width){
+    color=color||'#c3cbd6'; width=width||1;
+    if(this.y0<=0 && this.y1>=0) this.line(this.x0,0,this.x1,0,color,width);
+    if(this.x0<=0 && this.x1>=0) this.line(0,this.y0,0,this.y1,color,width);
+  }
+}
+const plots = {};
+function bindPlot(id,domId){ plots[id]=new Plot($(domId)); return plots[id]; }
+
+function resizeAll(){
+  Object.values(plots).forEach(p=>p.resize());
+  if(window._onResize){ window._onResize(); }
+}
+window.addEventListener('resize',()=>{ resizeAll(); if(window._redraw){ window._redraw(); } });
+
+function setEq(el, lines){
+  el.innerHTML = lines.map(l=>`<div class="eq${l[0]==='#'?' title':''}">${l[0]==='#'?l.slice(1):l}</div>`).join('');
+  el.classList.remove('hidden');
+  if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetPromise([el]).catch(()=>{}); }
+}
+const R = String.raw;
+
+/* ================= 主菜单 ================= */
+$('homeBtn').addEventListener('click',()=>{ stopAllAnim(); show('menu'); });
+document.querySelectorAll('.menu-btn').forEach(b=>{
+  b.addEventListener('click',()=>{ stopAllAnim(); show(b.dataset.goto); });
+});
+
+/* ================= 模块 1：振动来源（弹簧振子） ================= */
+bindPlot('osi_spring','osi_spring'); bindPlot('osi_yt','osi_yt'); bindPlot('osi_vt','osi_vt');
+const O = {}; // 求解结果缓存
+
+function axisLabels(p, xl, yl){
+  p.text(p.x1, p.y0, xl, {align:'right', base:'bottom', color:'#555', font:'12px'});
+  p.text(p.x0, p.y1, yl, {align:'left', base:'top', color:'#555', font:'12px'});
+}
+
+function solveOsi(){
+  const m=+$('osi_m').value, k=+$('osi_k').value, l=+$('osi_l').value/100; // l -> m
+  const y0in=+$('osi_y0').value/100, v0=+$('osi_v0').value/100; // 相对平衡位置的初始位移/速度
+  const g=$('osi_g').checked?9.8:0;
+  const w=Math.sqrt(k/m);
+  const Tp=2*Math.PI/w;
+  const tEnd=Math.max(2.5*Tp, 2);
+  const yEq = l + m*g/k;           // 平衡位置（m，自悬挂点向下）
+  // 初始位置 = 平衡位置 + 初始位移
+  let y=yEq+y0in, v=v0;
+  // RK4 求解 m y'' = -k(y-l) + m g
+  const h=0.002; const ts=[],ys=[],vs=[];
+  const f=(yy,vv)=> -k*(yy-l)/m + g;
+  for(let t=0;t<=tEnd+h/2;t+=h){
+    ts.push(t); ys.push(y); vs.push(v);
+    const a1=f(y,v), b1=v;
+    const a2=f(y+b1*h/2, v+a1*h/2), b2=v+a1*h/2;
+    const a3=f(y+b2*h/2, v+a2*h/2), b3=v+a2*h/2;
+    const a4=f(y+b3*h, v+a3*h), b4=v+a3*h;
+    const nv=v+h/6*(a1+2*a2+2*a3+a4);
+    const ny=y+h/6*(b1+2*b2+2*b3+b4);
+    y=ny; v=nv;
+  }
+  O.ts=ts; O.ys=ys.map(v=>v*100); O.vs=vs.map(v=>v*100);
+  O.yEq=yEq*100; O.w=w; O.Tp=Tp; O.m=m; O.k=k; O.l=l*100;
+  O.y0in=y0in*100; O.v0in=v0*100;
+  return O;
+}
+
+function drawSpring(p, ycm, ymin, ymax){
+  p.clear();
+  // 域：y 向下为正，范围 ymin..ymax（留出边距）
+  const half=Math.max(Math.abs(ymin),Math.abs(ymax),8)*1.15;
+  p.setDomain(-2,2,-half,half*0.2);
+  const bot=-ycm; // 向下为正 -> 画布中取负
+  // 向下的 y 轴（与右侧 y–t 坐标对应）
+  const ax=-1.5, ybot=-half*0.95;
+  p.arrow(ax,0,ax,ybot,'#5a6675',1.5);
+  p.text(ax-0.12, ybot, 'y', {align:'right', base:'middle', color:'#222', font:'bold 15px sans-serif'});
+  p.text(ax-0.12, 0, '0', {align:'right', base:'middle', color:'#888', font:'12px sans-serif'});
+  // 质量块到 y 轴的投影虚线
+  p.line(ax,bot,0,bot,'#d7a99a',1,[4,3]);
+  p.dot(ax,bot,'#d7a99a',3.5);
+  // 悬挂点（顶部）
+  p.line(-0.7,0,0.7,0,'#5a6675',2.5);
+  // 弹簧（从 0 向下到 ycm）
+  const N=20; const ctx=p.ctx;
+  ctx.strokeStyle='#3b6ea5'; ctx.lineWidth=2; ctx.setLineDash([]);
+  ctx.beginPath();
+  for(let i=0;i<=N;i++){
+    const yy=bot*(i/N);
+    const x=(i===0||i===N)?0:(i%2===1?0.30:-0.30);
+    const px=p.X(x), py=p.Y(yy);
+    if(i===0)ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+  // 质量块
+  const mr=p.sy(2.0);
+  ctx.fillStyle=BLUE; ctx.beginPath();
+  ctx.arc(p.X(0),p.Y(bot),Math.min(24,Math.max(8,Math.abs(mr))),0,Math.PI*2); ctx.fill();
+}
+function drawYt(p, pts){
+  p.clear();
+  const ts=O.ts, ys=O.ys;
+  const tmax=ts[ts.length-1];
+  const lo=Math.min(0,Math.min(...ys)), hi=Math.max(0,Math.max(...ys));
+  const pad=(hi-lo)*0.08 || 1;
+  p.setDomain(-0.06*tmax, tmax, lo-pad, hi+pad);
+  p.axesThroughOrigin();
+  axisLabels(p, 't (s)', 'y (cm)');
+  if(pts){ for(const i of pts) p.dot(ts[i], ys[i], BLUE, 1.5); }   // 动画阶段：打点
+  else { p.polyline(ts.map((t,i)=>[t,ys[i]]),BLUE,2); }            // 按钮：连成曲线
+}
+function drawVt(p){
+  p.clear();
+  const ts=O.ts, vs=O.vs;
+  const tmax=ts[ts.length-1];
+  const lo=Math.min(0,Math.min(...vs)), hi=Math.max(0,Math.max(...vs));
+  const pad=(hi-lo)*0.08 || 1;
+  p.setDomain(-0.06*tmax, tmax, lo-pad, hi+pad);
+  p.axesThroughOrigin();
+  axisLabels(p, 't (s)', 'v (cm/s)');
+  p.polyline(ts.map((t,i)=>[t,vs[i]]),RED,2);
+}
+
+let osiDone=false;
+$('osi_start').addEventListener('click',()=>{
+  stopAnim('osi'); osiDone=false; $('osi_curve').disabled=true; $('osi_eq').classList.add('hidden');
+  solveOsi();
+  const p=plots['osi_spring'], q=plots['osi_yt'];
+  const ymin=Math.min(0,Math.min(...O.ys)), ymax=Math.max(0,Math.max(...O.ys));
+  const N=O.ts.length; let i=0; const step=Math.max(1,Math.floor(N/240));
+  const pts=[];
+  function frame(){
+    for(let s=0;s<step && i<N;s++,i++) pts.push(i);
+    const idx=Math.min(i,N-1);
+    drawSpring(p,O.ys[idx],ymin,ymax);
+    drawYt(q, pts);
+    if(i<N){ anims['osi']=requestAnimationFrame(frame); }
+    else { osiDone=true; $('osi_curve').disabled=false; }
+  }
+  frame();
+});
+$('osi_curve').addEventListener('click',()=>{
+  if(!osiDone) return;
+  drawYt(plots['osi_yt'], null);
+  drawVt(plots['osi_vt']);
+  // 解析解（相对平衡位置）
+  const w=O.w, yEq=O.yEq, y0=O.y0in, v0=O.v0in;
+  const A=Math.sqrt(y0*y0 + (v0/w)*(v0/w));
+  const phi=-Math.atan2(v0/w, y0);
+  const aA=Math.round(A*100)/100, aW=Math.round(w*100)/100, aP=Math.round(phi*100)/100, aY=Math.round(yEq*100)/100;
+  setEq($('osi_eq'), [
+    R`$y = ${aA}\cos(${aW}t + ${aP}) + ${aY}\quad(\mathrm{cm})$`,
+    R`$v = -${Math.round(A*w*100)/100}\sin(${aW}t + ${aP})\quad(\mathrm{cm/s})$`,
+    R`#式中 $y$ 为自悬挂点向下的位移，平衡位置 $y_{0}=${aY}\,\mathrm{cm}$，振幅 $A=${aA}\,\mathrm{cm}$`
+  ]);
+});
+$('osi_back').addEventListener('click',()=>{ stopAnim('osi'); show('menu'); });
+
+/* ================= 模块 2：振动描述（旋转矢量） ================= */
+bindPlot('rv_circle','rv_circle'); bindPlot('rv_trace','rv_trace');
+const RV={A:2, w:Math.PI, phi:Math.PI/4};
+
+function equalXHalf(p, half){ return half*(p.W/p.H); }
+function rvXHalf(){ return equalXHalf(plots['rv_circle'], 1.5*RV.A); }
+
+function rvDrawCircle(theta, mode){
+  const p=plots['rv_circle'];
+  const A=RV.A, half=1.5*A, xhalf=rvXHalf();
+  p.clear(); p.setDomain(-xhalf,xhalf,-half,half);
+  p.axesThroughOrigin('#5a6675',2);
+  // 坐标轴标注 x、y
+  p.text(xhalf*0.97, 0, 'x', {align:'right', base:'bottom', color:'#222', font:'bold 15px sans-serif'});
+  p.text(0, half*0.97, 'y', {align:'left', base:'top', color:'#222', font:'bold 15px sans-serif'});
+  // 参考圆
+  p.ctx.strokeStyle='#e08a6e'; p.ctx.lineWidth=1.5; p.ctx.setLineDash([]);
+  p.ctx.beginPath(); p.ctx.arc(p.X(0),p.Y(0),p.sx(A),0,Math.PI*2); p.ctx.stroke();
+  const x=A*Math.cos(theta), y=A*Math.sin(theta);
+  if(mode==='r'){
+    // 位移模式：矢量 r 及其在 x 轴上的投影
+    p.line(x,0,x,y,'#d7a99a',1,[4,3]);
+    p.line(0,y,x,y,'#cbb',1,[4,3]);
+    p.line(0,0,x,0,'#e08a6e',2);
+    p.dot(x,0,RED,5); p.dot(0,y,'#c96',5);
+    p.arrow(0,0,x,y,RED,2);
+  } else {
+    // 速度模式：位置矢量仅示意；速度矢量起于位置点（不在原点）
+    p.arrow(0,0,x,y,'#d7a99a',1.5);
+    p.dot(x,y,'#d7a99a',4);
+    const vx=-A*RV.w*Math.sin(theta), vy=A*RV.w*Math.cos(theta), sc=0.25;
+    const px=x+sc*vx, py=y+sc*vy;
+    // 速度矢量及其分量（右三角）
+    p.line(x,y,x+sc*vx,y,'#8fb0d0',1.5,[4,3]);
+    p.line(x+sc*vx,y,x+sc*vx,y+sc*vy,'#8fb0d0',1.5,[4,3]);
+    p.arrow(x,y,px,py,BLUE,2);
+    // 投影到 x 轴：从起点投影到终点投影（起端不是原点）
+    p.line(x,y,x,0,'#d7a99a',1,[4,3]);
+    p.line(px,py,px,0,'#8fb0d0',1,[4,3]);
+    p.line(x,0,px,0,BLUE,3);
+    p.dot(x,0,'#d7a99a',4);
+    p.dot(px,0,BLUE,5);
+  }
+  p.text(-xhalf*0.96,half*0.9,'A = '+A,{color:'#666',font:'12px'});
+}
+
+function rvDrawTrace(hist, curVal, curT, mode){
+  const q=plots['rv_trace'];
+  // 位移模式：与上方圆同一横轴比例（对齐）；速度模式：按速度幅值放大横轴
+  const xhalf = (mode==='v') ? equalXHalf(q, 1.5*RV.A*RV.w) : rvXHalf();
+  const Tend=1.5*(2*Math.PI/RV.w);
+  q.clear(); q.setDomain(-xhalf,xhalf,-0.03*Tend,Tend*1.03);
+  // 坐标轴（加粗加深）：横轴 t=0 在顶部，纵轴 x=0 居中
+  q.line(-xhalf,Tend,xhalf,Tend,'#5a6675',2);
+  q.line(0,0,0,Tend,'#5a6675',2);
+  const col = mode==='v'?BLUE:RED;
+  hist.forEach(d=> q.dot(d.val, Tend-d.t, col, 2.5));
+  q.dot(curVal, Tend-curT, col, 4);
+  // 坐标标注（放大加深）；t 居中下方
+  q.text(xhalf*0.96, Tend*0.94, mode==='v'?'vₓ':'x', {align:'right', base:'top', color:'#222', font:'bold 15px sans-serif'});
+  q.text(0, 0, 't', {align:'center', base:'bottom', color:'#222', font:'bold 15px sans-serif'});
+}
+
+function rvRun(mode){
+  stopAnim('rv');
+  const w=RV.w, Tend=1.5*(2*Math.PI/w);
+  const DUR=12000;                    // 动画时长(ms)：1.5 个周期（每圈 8 秒）
+  const hist=[]; const t0=performance.now();
+  function frame(now){
+    const prog=Math.min(1,(now-t0)/DUR);
+    const t=prog*Tend; const theta=w*t+RV.phi;
+    const val = (mode==='r') ? RV.A*Math.cos(theta) : -RV.A*w*Math.sin(theta);
+    hist.push({t,val});
+    rvDrawCircle(theta,mode);
+    rvDrawTrace(hist,val,t,mode);
+    if(prog<1){ anims['rv']=requestAnimationFrame(frame); }
+    else if(mode==='r'){ $('rv_vel').disabled=false; }
+  }
+  anims['rv']=requestAnimationFrame(frame);
+}
+$('rv_start').addEventListener('click',()=>{
+  setEq($('rv_eq1'), [
+    R`$x\rightarrow \vec{r}\ :$`,
+    R`$x = A\cos(\omega t + \phi)$`,
+    R`$y = A\sin(\omega t + \phi)$`,
+    R`$\vec{r} = x\,\vec{i} + y\,\vec{j}$`
+  ]);
+  $('rv_eq2').classList.add('hidden');
+  rvRun('r');
+});
+$('rv_vel').addEventListener('click',()=>{
+  setEq($('rv_eq2'), [
+    R`$v_x\rightarrow \vec{v}\ :$`,
+    R`$v_x = -A\omega\sin(\omega t+\phi)$`,
+    R`$\;\;\; = A\omega\cos(\omega t+\phi+\frac{\pi}{2})$`,
+    R`$\vec{v} = v_x\,\vec{i} + v_y\,\vec{j}$`
+  ]);
+  rvRun('v');
+});
+$('rv_back').addEventListener('click',()=>{ stopAnim('rv'); show('menu'); });
+
+/* ================= 模块 3：振动叠加 ================= */
+bindPlot('sc_yt','sc_yt'); bindPlot('sc_vec','sc_vec'); bindPlot('sc_trace','sc_trace');
+function scParams(){
+  return { A1:+$('sc_A1').value, w1:+$('sc_w1').value, p1:+$('sc_p1').value,
+           A2:+$('sc_A2').value, w2:+$('sc_w2').value, p2:+$('sc_p2').value };
+}
+$('sc_curve').addEventListener('click',()=>{
+  stopAnim('sc');
+  const {A1,w1,p1,A2,w2,p2}=scParams();
+  const T1=2*Math.PI/w1, T2=2*Math.PI/w2;
+  const Tend=1.5*Math.max(T1,T2);
+  const n=400; const t=[]; const y1=[],y2=[],yc=[];
+  for(let i=0;i<=n;i++){ const tv=Tend*i/n; t.push(tv);
+    y1.push(A1*Math.cos(w1*tv+p1)); y2.push(A2*Math.cos(w2*tv+p2)); yc.push(y1[i]+y2[i]); }
+  const p=plots['sc_yt'];
+  const lo=Math.min(0,...yc)*1.15-0.1, hi=Math.max(0,...yc)*1.15+0.1;
+  p.clear();
+  p.setDomain(0,Tend,lo,hi);
+  p.axesThroughOrigin();
+  axisLabels(p,'t (s)','y');
+  p.polyline(t.map((v,i)=>[v,y1[i]]), RED,1.5);
+  p.polyline(t.map((v,i)=>[v,y2[i]]), BLUE,1.5);
+  p.polyline(t.map((v,i)=>[v,yc[i]]), GREEN,2,[4,3]);
+  // 图例
+  p.dot(Tend*0.02,hi*0.92,RED,4); p.text(Tend*0.06,hi*0.92,'y₁',{font:'12px'});
+  p.dot(Tend*0.02,hi*0.80,BLUE,4); p.text(Tend*0.06,hi*0.80,'y₂',{font:'12px'});
+  p.dot(Tend*0.02,hi*0.68,GREEN,4); p.text(Tend*0.06,hi*0.68,'y₁+y₂',{font:'12px'});
+  $('sc_anim').disabled=false;
+});
+$('sc_anim').addEventListener('click',()=>{
+  stopAnim('sc');
+  const {A1,w1,p1,A2,w2,p2}=scParams();
+  const T1=2*Math.PI/w1, T2=2*Math.PI/w2;
+  const Tend=1.5*Math.max(T1,T2);
+  const DUR=8000;                    // 动画时长(ms)：1.5 个周期
+  const p=plots['sc_vec'], q=plots['sc_trace'];
+  const half=1.2*(A1+A2), xhalf=equalXHalf(p,half);
+  const hist=[]; const t0=performance.now();
+  function frame(now){
+    const prog=Math.min(1,(now-t0)/DUR);
+    const t=prog*Tend;
+    const th1=w1*t+p1, th2=w2*t+p2;
+    const x1=A1*Math.cos(th1), y1=A1*Math.sin(th1);
+    const x2=A2*Math.cos(th2), y2=A2*Math.sin(th2);
+    const xc=x1+x2, yc=y1+y2;
+  p.clear(); p.setDomain(-xhalf,xhalf,-half,half);
+  p.axesThroughOrigin('#5a6675',2);
+  // 坐标轴标注 x、y
+  p.text(xhalf*0.97, 0, 'x', {align:'right', base:'bottom', color:'#222', font:'bold 15px sans-serif'});
+  p.text(0, half*0.97, 'y', {align:'left', base:'top', color:'#222', font:'bold 15px sans-serif'});
+    // 参考圆
+    p.ctx.strokeStyle='#e3b1a1'; p.ctx.beginPath(); p.ctx.arc(p.X(0),p.Y(0),p.sx(A1),0,Math.PI*2); p.ctx.stroke();
+    p.ctx.strokeStyle='#a1c3e3'; p.ctx.beginPath(); p.ctx.arc(p.X(0),p.Y(0),p.sx(A2),0,Math.PI*2); p.ctx.stroke();
+    // 分矢量及其在 x 轴上的投影
+    p.line(x1,0,x1,y1,'#e3b1a1',1,[4,3]);
+    p.line(x2,0,x2,y2,'#a1c3e3',1,[4,3]);
+    p.line(0,0,x1,0,'#e3b1a1',2);
+    p.line(0,0,x2,0,'#a1c3e3',2);
+    p.arrow(0,0,x1,y1,RED,1.5);
+    p.arrow(0,0,x2,y2,BLUE,1.5);
+    // 合矢量（平行四边形）
+    p.line(x1,y1,xc,yc, BLUE,1,[4,3]);
+    p.line(x2,y2,xc,yc, RED,1,[4,3]);
+    p.arrow(0,0,xc,yc,GREEN,2);
+    p.dot(xc,yc,GREEN,5);
+    p.text(-xhalf*0.96,half*0.9,'A₁='+A1+'   A₂='+A2,{color:'#666',font:'12px'});
+    // 合振动投影随时间（时间向下增大）
+    hist.push({t,val:xc});
+    q.clear(); q.setDomain(-xhalf,xhalf,0,Tend);
+    q.line(0,0,0,Tend,'#c3cbd6',1);
+    hist.forEach(d=>q.dot(d.val,Tend-d.t,GREEN,2.5));
+    q.dot(xc,Tend-t,GREEN,4);
+    q.text(xhalf*0.96,Tend*0.92,'x₁+x₂',{align:'right',base:'top',color:'#555',font:'12px'});
+    q.text(-xhalf*0.96,0,'t',{align:'left',base:'bottom',color:'#555',font:'12px'});
+    if(prog<1) anims['sc']=requestAnimationFrame(frame);
+  }
+  anims['sc']=requestAnimationFrame(frame);
+});
+$('sc_back').addEventListener('click',()=>{ stopAnim('sc'); show('menu'); });
+
+/* ================= 模块 4：振动传播（波动画） ================= */
+bindPlot('wv_canvas','wv_canvas');
+const WAV={A:2, T:10, phi0:-Math.PI/2, vel:2, lam:20, Px:20, rx:1.5};
+let wvPaused=false, wvElapsed=0, wvLast=null, wvRunning=false;
+$('wv_play').addEventListener('click',()=>{
+  stopAnim('wv'); $('wv_next').disabled=true;
+  wvElapsed=0; wvLast=null; wvPaused=false; wvRunning=true;
+  $('wv_pause').textContent='暂停'; $('wv_pause').disabled=false;
+  const p=plots['wv_canvas'];
+  const {A,T,phi0,vel,lam,rx}=WAV;
+  const xmax=rx*lam; // 30
+  const DUR=12000;   // 每个循环时长(ms)
+  function frame(now){
+    if(wvLast===null) wvLast=now;
+    if(!wvPaused) wvElapsed += (now-wvLast);
+    wvLast=now;
+    const prog=(wvElapsed/DUR)%1;
+    const t=prog*2*T;
+    const front=vel*t;
+    p.clear();
+    p.setDomain(-xmax,xmax,-1.3*A,1.3*A);
+    p.axesThroughOrigin();
+    p.line(-xmax,0,xmax,0,'#eef1f5',1);
+    // 波
+    const pts=[];
+    const n=300;
+    for(let i=0;i<=n;i++){
+      const x=-front+2*front*i/n;
+      pts.push([x, A*Math.cos(2*Math.PI*t/T+phi0-2*Math.PI*Math.abs(x)/lam)]);
+    }
+    p.polyline(pts,BLUE,2);
+    // 标记点：波源 x=0 始终振动；x=λ/4 待波前到达(t≥T/4)后才开始振动
+    const y0=A*Math.cos(2*Math.PI*t/T+phi0);
+    p.dot(0,y0,RED,6);
+    if(front >= lam/4){
+      const yq=A*Math.cos(2*Math.PI*t/T+phi0-2*Math.PI*(lam/4)/lam);
+      p.dot(lam/4,yq,BLUE,6);
+    }
+    p.text(xmax*0.9,1.15*A,'t = '+ (Math.round((t/T)*100)/100)+' T'+(wvPaused?'（已暂停）':''),{align:'right',font:'14px'});
+    if(wvRunning) anims['wv']=requestAnimationFrame(frame);
+  }
+  anims['wv']=requestAnimationFrame(frame);
+  setTimeout(()=>{ $('wv_next').disabled=false; }, 400);
+});
+$('wv_pause').addEventListener('click',()=>{
+  if(!wvRunning) return;
+  wvPaused=!wvPaused;
+  $('wv_pause').textContent = wvPaused ? '继续' : '暂停';
+});
+$('wv_next').addEventListener('click',()=>{ wvRunning=false; stopAnim('wv'); $('wv_pause').disabled=true; show('wav'); });
+$('wv_back').addEventListener('click',()=>{ wvRunning=false; stopAnim('wv'); $('wv_pause').disabled=true; show('menu'); });
+
+/* ================= 模块 5：振动到波 ================= */
+bindPlot('o2w_c1','o2w_c1'); bindPlot('o2w_c2','o2w_c2'); bindPlot('o2w_c3','o2w_c3'); bindPlot('o2w_c4','o2w_c4');
+function drawWaveSnapshot(p, rt){
+  const {A,T,phi0,vel,lam,rx}=WAV;
+  const t=rt*T; const front=vel*t;
+  const xmax=rx*lam;
+  p.clear();
+  p.setDomain(-xmax,xmax,-1.3*A,1.3*A);
+  p.axesThroughOrigin();
+  p.line(-xmax,0,xmax,0,'#eef1f5',1);
+  const pts=[]; const n=300;
+  for(let i=0;i<=n;i++){ const x=-front+2*front*i/n; pts.push([x,A*Math.cos(2*Math.PI*t/T+phi0-2*Math.PI*Math.abs(x)/lam)]); }
+  p.polyline(pts,BLUE,2);
+  const y0=A*Math.cos(2*Math.PI*t/T+phi0);
+  p.dot(0,y0,RED,5);
+  if(front >= lam/4){ p.dot(lam/4,A*Math.cos(2*Math.PI*t/T+phi0-Math.PI/2),BLUE,5); }
+  p.text(xmax*0.9,1.15*A,'t = '+rt+' T',{align:'right',font:'13px'});
+  p.text(xmax*0.05,-1.1*A,'y',{font:'12px'});
+}
+$('o2w_start').addEventListener('click',()=>{
+  drawWaveSnapshot(plots['o2w_c1'],0.25);
+  drawWaveSnapshot(plots['o2w_c2'],0.50);
+  drawWaveSnapshot(plots['o2w_c3'],0.75);
+  drawWaveSnapshot(plots['o2w_c4'],1.00);
+  $('o2w_eq').disabled=false;
+});
+const O2W_SNAP = [
+  R`#不同时刻的波形方程`,
+  R`$t=\frac{T}{4}:\;\; y=2\cos\!\left(\frac{2\pi}{20}x\right)$`,
+  R`$t=\frac{T}{2}:\;\; y=2\cos\!\left(\frac{2\pi}{20}x-\frac{\pi}{2}\right)=2\cos\!\left(\frac{2\pi}{20}(x-20\cdot\frac{1}{4})\right)$`,
+  R`$t=\frac{3T}{4}:\;\; y=2\cos\!\left(\frac{2\pi}{20}x-\pi\right)=2\cos\!\left(\frac{2\pi}{20}(x-20\cdot\frac{1}{2})\right)$`,
+  R`$t=T:\;\; y=2\cos\!\left(\frac{2\pi}{20}x-\frac{3\pi}{2}\right)=2\cos\!\left(\frac{2\pi}{20}(x-20\cdot\frac{3}{4})\right)$`
+];
+const O2W_DERIVE = [
+  R`#波函数推导`,
+  R`$y_{(x)}\;\rightarrow\; y_{(x,t)}$`,
+  R`$y_{+}=A\cos\!\left(\frac{2\pi}{\lambda}\left(x-\lambda\frac{t-T/4}{T}\right)\right)$`,
+  R`$\;\;\;=A\cos\!\left(\frac{2\pi}{\lambda}x-\frac{2\pi}{T}t+\frac{\pi}{2}\right)$`,
+  R`$\;\;\;=A\cos\!\left(\frac{2\pi}{T}t-\frac{2\pi}{\lambda}x-\frac{\pi}{2}\right)$`,
+  R`$y_{-}=A\cos\!\left(\frac{2\pi}{\lambda}\left(-x-\lambda\frac{t-T/4}{T}\right)\right)$`,
+  R`$\;\;\;=A\cos\!\left(\frac{2\pi}{\lambda}(-x)-\frac{2\pi}{T}t+\frac{\pi}{2}\right)$`,
+  R`$\;\;\;=A\cos\!\left(\frac{2\pi}{T}t+\frac{2\pi}{\lambda}x-\frac{\pi}{2}\right)$`
+];
+$('o2w_eq').addEventListener('click',()=>{
+  // 左栏：显示方程（快照）——对应 x≥0 正半轴（右半侧）
+  $('o2w_eqwrap').classList.remove('hidden');
+  setEq($('o2w_eqleft'), O2W_SNAP);
+  $('o2w_eqleft').insertAdjacentHTML('afterbegin',
+    '<div class="muted-note" style="margin-bottom:6px;">提示：以下波形方程对应 x ≥ 0 的正半轴（右半侧）；x &lt; 0 一侧的波形与之镜像对称。</div>');
+  // 右栏：推导（默认在右，尚未展开时给出提示）
+  $('o2w_eqright').innerHTML = '<div class="muted-note">（点击“推导 y(x)→y(x,t)”，推导过程将显示在此处）</div>';
+  $('o2w_derive').disabled=false;
+});
+$('o2w_derive').addEventListener('click',()=>{
+  // 右栏：推导方程，左栏“显示方程”保持显示
+  setEq($('o2w_eqright'), O2W_DERIVE);
+});
+$('o2w_back').addEventListener('click',()=>{ show('menu'); });
+
+/* ================= 模块 6：质元振动的传播（延迟） ================= */
+bindPlot('wf_c1','wf_c1'); bindPlot('wf_c2','wf_c2'); bindPlot('wf_c3','wf_c3'); bindPlot('wf_c4','wf_c4');
+function drawPointSnapshot(p, rt){
+  const {A,T,phi0}=WAV; const Pt=T;
+  const tmax=1.5*T;
+  p.clear();
+  p.setDomain(0,tmax,-1.3*A,1.3*A);
+  p.axesThroughOrigin();
+  // 参考完整周期（虚线）；x=λ/4 在 t=T/4 波到达后才开始振动
+  const tStart=Pt/4;
+  const full=[];
+  for(let i=0;i<=300;i++){ const tv=tmax*i/300; full.push([tv, A*Math.cos(2*Math.PI*tv/Pt+phi0)]); }
+  p.polyline(full,RED,1,[4,3]); // x=0
+  const full2=[];
+  for(let i=0;i<=300;i++){ const tv=tmax*i/300;
+    if(tv>=tStart) full2.push([tv, A*Math.cos(2*Math.PI*tv/Pt+phi0-Math.PI/2)]); }
+  p.polyline(full2,BLUE,1,[4,3]); // x=λ/4
+  // 当前段（实线）
+  const t=rt*Pt; const seg=[];
+  for(let i=0;i<=300;i++){ const tv=t*i/300; seg.push([tv, A*Math.cos(2*Math.PI*tv/Pt+phi0)]); }
+  p.polyline(seg,RED,2);
+  const seg2=[];
+  for(let i=0;i<=300;i++){ const tv=t*i/300;
+    if(tv>=tStart) seg2.push([tv, A*Math.cos(2*Math.PI*tv/Pt+phi0-Math.PI/2)]); }
+  p.polyline(seg2,BLUE,2);
+  const y0=A*Math.cos(2*Math.PI*t/Pt+phi0);
+  p.dot(t,y0,RED,5);
+  if(t>=tStart){ p.dot(t,A*Math.cos(2*Math.PI*t/Pt+phi0-Math.PI/2),BLUE,5); }
+  p.text(tmax*0.97,1.15*A,'t = '+rt+' T',{align:'right',font:'13px'});
+  p.text(tmax*0.03,1.15*A,'x=0(红)  x=λ/4(蓝)',{font:'11px',color:'#666'});
+}
+$('wf_start').addEventListener('click',()=>{
+  drawPointSnapshot(plots['wf_c1'],0.25);
+  drawPointSnapshot(plots['wf_c2'],0.50);
+  drawPointSnapshot(plots['wf_c3'],0.75);
+  drawPointSnapshot(plots['wf_c4'],1.00);
+  $('wf_eq').disabled=false;
+});
+$('wf_eq').addEventListener('click',()=>{
+  setEq($('wf_eq1'), [
+    R`$y_{(x=0,t)}=A\cos\!\left(\frac{2\pi}{T}t-\frac{\pi}{2}\right)$`,
+    R`$y_{(x=\frac{\lambda}{4},t)}=A\cos\!\left(\frac{2\pi}{T}t-\frac{\pi}{2}-\frac{\pi}{2}\right)$`,
+    R`$\;\;\;=A\cos\!\left(\frac{2\pi}{T}\left(t-\frac{T}{4}\right)-\frac{\pi}{2}\right)$`
+  ]);
+  $('wf_eq2').classList.add('hidden');
+  $('wf_derive').disabled=false;
+  $('wf_next').disabled=false;
+});
+$('wf_derive').addEventListener('click',()=>{
+  setEq($('wf_eq2'), [
+    R`$y_{(t)}\;\rightarrow\; y_{(x,t)}$`,
+    R`$y_{+}=A\cos\!\left(\frac{2\pi}{T}\left(t-\frac{x}{\lambda}T\right)-\frac{\pi}{2}\right)$`,
+    R`$\;\;\;=A\cos\!\left(\frac{2\pi}{T}t-\frac{2\pi}{\lambda}x-\frac{\pi}{2}\right)$`,
+    R`$y_{-}=A\cos\!\left(\frac{2\pi}{T}\left(t-\frac{-x}{\lambda}T\right)-\frac{\pi}{2}\right)$`,
+    R`$\;\;\;=A\cos\!\left(\frac{2\pi}{T}t+\frac{2\pi}{\lambda}x-\frac{\pi}{2}\right)$`
+  ]);
+});
+$('wf_next').addEventListener('click',()=>{ show('osi2wav'); });
+
+/* ================= 响应式重绘 ================= */
+window._redraw = function(){
+  // 简单重绘当前可见模块的静态内容
+};
+resizeAll();
+</script>
+</body>
+</html>
