@@ -195,6 +195,7 @@ canvas{width:100%; max-width:100%; height:100%; display:block; background:#fff; 
           <div class="plot-wrap"><div class="panel"><canvas id="osi_vt"></canvas></div><div class="cap">速度 v – t 曲线</div></div>
         </div>
       </div>
+      <p class="muted-note" style="margin-top:8px;">曲线可缩放：滚轮 / 双指缩放，拖动平移，双击复位。</p>
     </div>
   </section>
 
@@ -235,9 +236,13 @@ canvas{width:100%; max-width:100%; height:100%; display:block; background:#fff; 
         <span class="param"><label>φ₂</label><input type="number" id="sc_p2" value="1.5708" step="0.1"></span>
       </fieldset>
       <p class="muted-note" style="margin:6px 0 0;">提示：默认 ω₁ = ω₂ = 1.5708 ≈ π/2 rad/s，φ₂ = 1.5708 ≈ π/2。</p>
+      <span class="param" style="margin-top:8px;"><label>显示时长 (×T_max)</label><input type="number" id="sc_tend" value="2" step="0.5" min="0.5"></span>
       <div class="toolbar">
         <button class="btn" id="sc_curve">叠加曲线</button>
         <button class="btn blue" id="sc_anim" disabled>矢量动画</button>
+        <button class="btn ghost" id="sc_zin">放大</button>
+        <button class="btn ghost" id="sc_zout">缩小</button>
+        <button class="btn ghost" id="sc_zreset">复位</button>
         <button class="btn ghost" id="sc_back">返回</button>
       </div>
       <div style="max-width:480px;margin:12px auto 0;">
@@ -245,6 +250,7 @@ canvas{width:100%; max-width:100%; height:100%; display:block; background:#fff; 
         <div class="plot-wrap" style="margin-top:12px;"><div class="panel vec-panel"><canvas id="sc_vec"></canvas></div><div class="cap">旋转矢量合成</div></div>
         <div class="plot-wrap" style="margin-top:12px;"><div class="panel trace-panel"><canvas id="sc_trace"></canvas></div><div class="cap">合振动随时间的变化（时间向下增大，横轴与上图对齐）</div></div>
       </div>
+      <p class="muted-note" style="margin-top:8px;">曲线可缩放：滚轮 / 双指缩放，拖动平移，双击复位。</p>
       <div id="sc_eq" class="eq-box hidden"></div>
     </div>
   </section>
@@ -281,6 +287,7 @@ canvas{width:100%; max-width:100%; height:100%; display:block; background:#fff; 
         <div class="plot-wrap"><div class="panel sm"><canvas id="o2w_c3"></canvas></div><div class="cap">t = 0.75T</div></div>
         <div class="plot-wrap"><div class="panel sm"><canvas id="o2w_c4"></canvas></div><div class="cap">t = 1.00T</div></div>
       </div>
+      <p class="muted-note" style="margin-top:8px;">曲线可缩放：滚轮 / 双指缩放，拖动平移，双击复位。</p>
       <div id="o2w_eqwrap" class="hidden" style="margin-top:12px;">
         <div id="o2w_eqleft" class="eq-box"></div>
         <div id="o2w_eqright" class="eq-box"></div>
@@ -305,6 +312,7 @@ canvas{width:100%; max-width:100%; height:100%; display:block; background:#fff; 
         <div class="plot-wrap"><div class="panel sm"><canvas id="wf_c3"></canvas></div><div class="cap">t = 0.75T</div></div>
         <div class="plot-wrap"><div class="panel sm"><canvas id="wf_c4"></canvas></div><div class="cap">t = 1.00T</div></div>
       </div>
+      <p class="muted-note" style="margin-top:8px;">曲线可缩放：滚轮 / 双指缩放，拖动平移，双击复位。</p>
       <div style="margin-top:12px;">
         <div id="wf_eq1" class="eq-box hidden"></div>
         <div id="wf_eq2" class="eq-box hidden"></div>
@@ -337,20 +345,68 @@ function stopAllAnim(){ Object.keys(anims).forEach(stopAnim); }
 
 /* Plot 封装 canvas */
 class Plot{
-  constructor(canvas){ this.cv=canvas; this.ctx=canvas.getContext('2d'); this.dpr=window.devicePixelRatio||1; this.resize(); this.x0=-1;this.x1=1;this.y0=-1;this.y1=1; }
+  constructor(canvas){ this.cv=canvas; this.ctx=canvas.getContext('2d'); this.dpr=window.devicePixelRatio||1; this.resize(); this.x0=-1;this.x1=1;this.y0=-1;this.y1=1;
+    this.zx=1; this.zy=1; this.px=0; this.py=0; this.redraw=null; this._drag=false;
+    this.bindInteract();
+  }
   resize(){
     const r=this.cv.getBoundingClientRect();
     const w=(r.width>0)?r.width:this.cv.clientWidth||400;
     const h=(r.height>0)?r.height:this.cv.clientHeight||240;
+    if(this.W>0 && this.H>0){ this.px*=w/this.W; this.py*=h/this.H; }
     this.cv.width=Math.round(w*this.dpr); this.cv.height=Math.round(h*this.dpr);
     this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
     this.W=w; this.H=h;
   }
   setDomain(x0,x1,y0,y1){ this.x0=x0;this.x1=x1;this.y0=y0;this.y1=y1; }
-  X(x){ return (x-this.x0)/(this.x1-this.x0)*this.W; }
-  Y(y){ return this.H-(y-this.y0)/(this.y1-this.y0)*this.H; }
-  sx(dx){ return dx/(this.x1-this.x0)*this.W; } // pixel length of dx
-  sy(dy){ return dy/(this.y1-this.y0)*this.H; }
+  baseX(x){ return (x-this.x0)/(this.x1-this.x0)*this.W; }
+  baseY(y){ return this.H-(y-this.y0)/(this.y1-this.y0)*this.H; }
+  X(x){ return this.W/2+(this.baseX(x)-this.W/2)*this.zx+this.px; }
+  Y(y){ return this.H/2+(this.baseY(y)-this.H/2)*this.zy+this.py; }
+  sx(dx){ return dx/(this.x1-this.x0)*this.W*this.zx; }
+  sy(dy){ return dy/(this.y1-this.y0)*this.H*this.zy; }
+  triggerRedraw(){ if(this.redraw) this.redraw(); }
+  resetView(){ this.zx=1; this.zy=1; this.px=0; this.py=0; this.triggerRedraw(); }
+  zoomAt(mx,my,f){
+    if(!this.redraw) return;
+    const cx=this.W/2, cy=this.H/2;
+    this.px -= (mx-cx-this.px)*(f-1);
+    this.py -= (my-cy-this.py)*(f-1);
+    this.zx*=f; this.zy*=f;
+    this.triggerRedraw();
+  }
+  bindInteract(){
+    const cv=this.cv; cv.style.touchAction='none';
+    cv.title='滚轮 / 双指缩放，拖动平移，双击复位';
+    cv.addEventListener('wheel', e=>{ if(!this.redraw) return; e.preventDefault(); const r=cv.getBoundingClientRect(); this.zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.15:1/1.15); }, {passive:false});
+    cv.addEventListener('mousedown', e=>{ if(!this.redraw) return; this._drag=true; this._lx=e.clientX; this._ly=e.clientY; cv.style.cursor='grabbing'; e.preventDefault(); });
+    window.addEventListener('mousemove', e=>{ if(!this._drag) return; this.px+=e.clientX-this._lx; this.py+=e.clientY-this._ly; this._lx=e.clientX; this._ly=e.clientY; this.triggerRedraw(); });
+    window.addEventListener('mouseup', ()=>{ if(this._drag){ this._drag=false; cv.style.cursor=''; } });
+    cv.addEventListener('dblclick', ()=>{ this.resetView(); });
+    let pinch=null;
+    cv.addEventListener('touchstart', e=>{
+      if(!this.redraw) return;
+      if(e.touches.length===1){ this._drag=true; this._lx=e.touches[0].clientX; this._ly=e.touches[0].clientY; }
+      else if(e.touches.length===2){ this._drag=false; pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }
+      e.preventDefault();
+    }, {passive:false});
+    cv.addEventListener('touchmove', e=>{
+      if(!this.redraw) return;
+      if(e.touches.length===1 && this._drag){
+        const dx=e.touches[0].clientX-this._lx, dy=e.touches[0].clientY-this._ly;
+        this._lx=e.touches[0].clientX; this._ly=e.touches[0].clientY;
+        this.px+=dx; this.py+=dy; this.triggerRedraw();
+      } else if(e.touches.length===2 && pinch){
+        const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+        const r=cv.getBoundingClientRect();
+        const mx=(e.touches[0].clientX+e.touches[1].clientX)/2-r.left;
+        const my=(e.touches[0].clientY+e.touches[1].clientY)/2-r.top;
+        this.zoomAt(mx,my,d/pinch); pinch=d;
+      }
+      e.preventDefault();
+    }, {passive:false});
+    cv.addEventListener('touchend', e=>{ this._drag=false; if(e.touches.length<2) pinch=null; });
+  }
   clear(bg){ this.ctx.fillStyle=bg||'#ffffff'; this.ctx.fillRect(0,0,this.W,this.H); }
   setLineStyle(color,width,dash){ this.ctx.strokeStyle=color; this.ctx.lineWidth=width||1; this.ctx.setLineDash(dash||[]); }
   line(x1,y1,x2,y2,color,width,dash){ this.setLineStyle(color,width,dash); this.ctx.beginPath(); this.ctx.moveTo(this.X(x1),this.Y(y1)); this.ctx.lineTo(this.X(x2),this.Y(y2)); this.ctx.stroke(); this.ctx.setLineDash([]); }
@@ -367,9 +423,21 @@ class Plot{
     this.ctx.closePath(); this.ctx.fill();
   }
   text(x,y,str,opts){ opts=opts||{}; const ctx=this.ctx;
-    ctx.fillStyle=opts.color||INK; ctx.font=opts.font||'13px Segoe UI, Microsoft YaHei';
-    ctx.textAlign=opts.align||'left'; ctx.textBaseline=opts.base||'middle';
-    ctx.fillText(str,this.X(x),this.Y(y));
+    const font=opts.font||'13px Segoe UI, Microsoft YaHei';
+    ctx.font=font;
+    const px=this.X(x), py=this.Y(y);
+    const align=opts.align||'left', base=opts.base||'middle';
+    if(opts.bg){
+      const m=ctx.measureText(str); const fs=parseInt(font,10)||12;
+      const w=m.width, h=fs*1.25;
+      let rx=px, ry=py;
+      if(align==='center') rx=px-w/2; else if(align==='right') rx=px-w;
+      if(base==='middle') ry=py-h/2; else if(base==='bottom') ry=py-h; 
+      ctx.fillStyle=opts.bg; ctx.fillRect(rx-2,ry,w+4,h);
+    }
+    ctx.fillStyle=opts.color||INK;
+    ctx.textAlign=align; ctx.textBaseline=base;
+    ctx.fillText(str,px,py);
   }
   axesThroughOrigin(color,width){
     color=color||'#c3cbd6'; width=width||1;
@@ -515,6 +583,8 @@ $('osi_curve').addEventListener('click',()=>{
   if(!osiDone) return;
   drawYt(plots['osi_yt'], null);
   drawVt(plots['osi_vt']);
+  plots['osi_yt'].redraw = ()=>drawYt(plots['osi_yt'], null);
+  plots['osi_vt'].redraw = ()=>drawVt(plots['osi_vt']);
   // 解析解（相对平衡位置）
   const w=O.w, yEq=O.yEq, y0=O.y0in, v0=O.v0in;
   const A=Math.sqrt(y0*y0 + (v0/w)*(v0/w));
@@ -635,19 +705,51 @@ function scParams(){
   return { A1:+$('sc_A1').value, w1:+$('sc_w1').value, p1:+$('sc_p1').value,
            A2:+$('sc_A2').value, w2:+$('sc_w2').value, p2:+$('sc_p2').value };
 }
-$('sc_curve').addEventListener('click',()=>{
-  stopAnim('sc');
+function scTend(){
+  const {w1,w2}=scParams();
+  const T1=2*Math.PI/w1, T2=2*Math.PI/w2;
+  const tmul=Math.max(0.5, +$('sc_tend').value || 2);
+  return tmul*Math.max(T1,T2);
+}
+function niceStep(range, count){
+  const raw=range/count;
+  const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const n=raw/mag;
+  const s = n<1.5?1 : n<3?2 : n<7?5 : 10;
+  return s*mag;
+}
+function fmtTick(v){ return Math.abs(v)<1e-9 ? '0' : String(Math.round(v*100)/100); }
+function drawAxesTicks(p, Tend, lo, hi){
+  const yr=hi-lo;
+  // 横轴（时间）刻度值
+  const sx=niceStep(Tend, 6);
+  for(let tv=0; tv<=Tend+1e-9; tv+=sx){
+    p.line(tv, -0.015*yr, tv, 0.015*yr, '#8a94a3', 1);
+    p.text(tv, -0.05*yr, fmtTick(tv), {align:'center', base:'top', color:'#555', font:'11px sans-serif', bg:'#fff'});
+  }
+  // 纵轴刻度值
+  const sy=niceStep(yr, 5);
+  for(let vv=Math.ceil(lo/sy)*sy; vv<=hi+1e-9; vv+=sy){
+    p.line(-0.01*Tend, vv, 0.01*Tend, vv, '#8a94a3', 1);
+    p.text(-0.015*Tend, vv, fmtTick(vv), {align:'right', base:'middle', color:'#555', font:'11px sans-serif'});
+  }
+}
+function drawScCurve(){
   const {A1,w1,p1,A2,w2,p2}=scParams();
   const T1=2*Math.PI/w1, T2=2*Math.PI/w2;
-  const Tend=1.5*Math.max(T1,T2);
-  const n=400; const t=[]; const y1=[],y2=[],yc=[];
+  const Tend=scTend();          // 显示时长（默认 2×T_max，可调）
+  // 采样点数随显示范围自适应：每个最快周期约 100 个点，避免范围增大时曲线失真
+  const Tmin=Math.min(T1,T2);
+  const n=Math.min(20000, Math.max(500, Math.ceil(100*Tend/Tmin)));
+  const t=[]; const y1=[],y2=[],yc=[];
   for(let i=0;i<=n;i++){ const tv=Tend*i/n; t.push(tv);
     y1.push(A1*Math.cos(w1*tv+p1)); y2.push(A2*Math.cos(w2*tv+p2)); yc.push(y1[i]+y2[i]); }
   const p=plots['sc_yt'];
   const lo=Math.min(0,...yc)*1.15-0.1, hi=Math.max(0,...yc)*1.15+0.1;
   p.clear();
-  p.setDomain(0,Tend,lo,hi);
-  p.axesThroughOrigin();
+  p.setDomain(-0.12*Tend, Tend, lo, hi);
+  p.axesThroughOrigin('#8a94a3',1);
+  drawAxesTicks(p, Tend, lo, hi);
   axisLabels(p,'t (s)','y');
   p.polyline(t.map((v,i)=>[v,y1[i]]), RED,1.5);
   p.polyline(t.map((v,i)=>[v,y2[i]]), BLUE,1.5);
@@ -656,14 +758,22 @@ $('sc_curve').addEventListener('click',()=>{
   p.dot(Tend*0.02,hi*0.92,RED,4); p.text(Tend*0.06,hi*0.92,'y₁',{font:'12px'});
   p.dot(Tend*0.02,hi*0.80,BLUE,4); p.text(Tend*0.06,hi*0.80,'y₂',{font:'12px'});
   p.dot(Tend*0.02,hi*0.68,GREEN,4); p.text(Tend*0.06,hi*0.68,'y₁+y₂',{font:'12px'});
+}
+plots['sc_yt'].redraw = drawScCurve;   // 叠加曲线：注册重绘以支持缩放/平移
+$('sc_curve').addEventListener('click',()=>{
+  stopAnim('sc');
+  drawScCurve();
   $('sc_anim').disabled=false;
 });
+$('sc_zin').addEventListener('click',()=>{ const p=plots['sc_yt']; p.zoomAt(p.W/2,p.H/2,1.25); });
+$('sc_zout').addEventListener('click',()=>{ const p=plots['sc_yt']; p.zoomAt(p.W/2,p.H/2,1/1.25); });
+$('sc_zreset').addEventListener('click',()=>{ plots['sc_yt'].resetView(); });
 $('sc_anim').addEventListener('click',()=>{
   stopAnim('sc');
   const {A1,w1,p1,A2,w2,p2}=scParams();
   const T1=2*Math.PI/w1, T2=2*Math.PI/w2;
-  const Tend=1.5*Math.max(T1,T2);
-  const DUR=8000;                    // 动画时长(ms)：1.5 个周期
+  const Tend=2*Math.max(T1,T2);      // 矢量动画固定为 2×T_max，不随显示时长变化
+  const DUR=10667;                   // 动画时长(ms)：2 个周期，约 5.3s/周期
   const p=plots['sc_vec'], q=plots['sc_trace'];
   const half=1.2*(A1+A2), xhalf=equalXHalf(p,half);
   const hist=[]; const t0=performance.now();
@@ -785,6 +895,10 @@ $('o2w_start').addEventListener('click',()=>{
   drawWaveSnapshot(plots['o2w_c2'],0.50);
   drawWaveSnapshot(plots['o2w_c3'],0.75);
   drawWaveSnapshot(plots['o2w_c4'],1.00);
+  plots['o2w_c1'].redraw = ()=>drawWaveSnapshot(plots['o2w_c1'],0.25);
+  plots['o2w_c2'].redraw = ()=>drawWaveSnapshot(plots['o2w_c2'],0.50);
+  plots['o2w_c3'].redraw = ()=>drawWaveSnapshot(plots['o2w_c3'],0.75);
+  plots['o2w_c4'].redraw = ()=>drawWaveSnapshot(plots['o2w_c4'],1.00);
   $('o2w_eq').disabled=false;
 });
 const O2W_SNAP = [
@@ -856,6 +970,10 @@ $('wf_start').addEventListener('click',()=>{
   drawPointSnapshot(plots['wf_c2'],0.50);
   drawPointSnapshot(plots['wf_c3'],0.75);
   drawPointSnapshot(plots['wf_c4'],1.00);
+  plots['wf_c1'].redraw = ()=>drawPointSnapshot(plots['wf_c1'],0.25);
+  plots['wf_c2'].redraw = ()=>drawPointSnapshot(plots['wf_c2'],0.50);
+  plots['wf_c3'].redraw = ()=>drawPointSnapshot(plots['wf_c3'],0.75);
+  plots['wf_c4'].redraw = ()=>drawPointSnapshot(plots['wf_c4'],1.00);
   $('wf_eq').disabled=false;
 });
 $('wf_eq').addEventListener('click',()=>{
